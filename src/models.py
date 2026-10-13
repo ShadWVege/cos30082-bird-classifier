@@ -36,15 +36,16 @@ def build_model(config, pretrained=True):
     raise ValueError(f"Unknown model: {kind}")
 
 
-def set_stage(model, kind, stage):
-    """Only the classifier then layer4+classifier receive gradient updates."""
+def set_stage(model, kind, stage, finetune_blocks=("layer4",)):
+    """Only the classifier then active blocks + classifier receive gradient updates."""
     if kind != "resnet18":
         return
+    active_prefixes = tuple(f"{b}." for b in finetune_blocks) if stage == "finetune" else ()
     for name, parameter in model.named_parameters():
-        parameter.requires_grad = name.startswith("fc.") or (stage == "finetune" and name.startswith("layer4."))
+        parameter.requires_grad = name.startswith("fc.") or (stage == "finetune" and name.startswith(active_prefixes))
 
 
-def training_mode(model, kind, stage):
+def training_mode(model, kind, stage, finetune_blocks=("layer4",), freeze_bn=False):
     model.train()
     if kind == "resnet18":
         # requires_grad=False alone DOES NOT freeze BatchNorm running statistics.
@@ -52,4 +53,11 @@ def training_mode(model, kind, stage):
         model.eval()
         model.fc.train()
         if stage == "finetune":
-            model.layer4.train()
+            for b in finetune_blocks:
+                block = getattr(model, b, None)
+                if block is not None:
+                    block.train()
+            if freeze_bn:
+                for m in model.modules():
+                    if isinstance(m, nn.modules.batchnorm._BatchNorm):
+                        m.eval()

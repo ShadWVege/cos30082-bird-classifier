@@ -54,6 +54,7 @@ class Predictor:
             raise FileNotFoundError(
                 "No trained model exported yet. Train, compare, then run python -m src.export_space."
             )
+        self.model_path = Path(model_path)
         self.device = torch.device(device)
         self._lock = threading.RLock()
         if self.device.type == "cpu":
@@ -119,32 +120,49 @@ class Predictor:
         return image
 
     @torch.inference_mode()
-    def predict(self, image):
-        """Compute top-5 softmax probabilities using inference_mode (no gradient graph allocated)."""
+    def predict(self, image, use_tta=False):
+        """Compute top-5 softmax probabilities using inference_mode (no gradient graph allocated).
+
+        When use_tta=True, runs sequential inference on original and horizontally flipped images
+        and averages the resulting 200-class softmax probabilities. Sequential execution
+        preserves peak memory (batch size 1).
+        """
         with self._lock:
             image = self._validate_image(image)
-            tensor = self.transform(image).unsqueeze(0).to(self.device)
-            probabilities = self.model(tensor).softmax(dim=1)[0]
+            tensor_orig = self.transform(image).unsqueeze(0).to(self.device)
+            probs_orig = self.model(tensor_orig).softmax(dim=1)[0]
+            del tensor_orig
+
+            if use_tta:
+                flipped = image.transpose(Image.FLIP_LEFT_RIGHT)
+                tensor_flip = self.transform(flipped).unsqueeze(0).to(self.device)
+                probs_flip = self.model(tensor_flip).softmax(dim=1)[0]
+                del tensor_flip
+                probabilities = 0.5 * (probs_orig + probs_flip)
+            else:
+                probabilities = probs_orig
+
             top = probabilities.topk(min(5, len(self.names)))
             # Probabilities use ALL 200 classes in the softmax denominator, not a renormalized top-5 subset.
             return {self.names[int(i)]: float(p) for p, i in zip(top.values, top.indices)}
 
-    def predict_with_gradcam(self, image, include_gradcam=True):
+    def predict_with_gradcam(self, image, include_gradcam=True, use_tta=False):
         """Run prediction and optionally compute layer4 Grad-CAM components.
 
         Design choice: When `include_gradcam=False`, this method delegates to `predict()` under
         `@torch.inference_mode()`, completely skipping forward hooks and the backward pass to save
         compute and latency. When `include_gradcam=True`, it attaches gradient tracking exclusively
         to the final convolutional block output (`layer4` in ResNet18, $7\\times 7$ spatial grid).
-        Because `layer4` immediately precedes `avgpool -> flatten -> fc`, $\\partial \\text{logit}/\\partial A_{\\text{layer4}}$
-        depends solely on `avgpool` and `fc`, producing bit-for-bit identical Grad-CAM heatmaps
-        without storing intermediate activations for `conv1`–`layer3` or parameter `.grad` buffers.
+
+        When `use_tta=True`, it evaluates the horizontally flipped view sequentially under `no_grad()`,
+        averages softmax probabilities to determine the top-1 predicted class, and computes the
+        original-view `layer4` Grad-CAM attribution for that selected target class.
         """
         with self._lock:
             image = self._validate_image(image)
             size = self.config["image_size"]
             if not include_gradcam:
-                scores = self.predict(image)
+                scores = self.predict(image, use_tta=use_tta)
                 records = [
                     {"rank": r, "label": self.name_to_id[k], "name": k, "prob": v}
                     for r, (k, v) in enumerate(scores.items(), 1)
@@ -156,7 +174,16 @@ class Predictor:
                     "heatmap": None,
                     "overlay": None,
                     "panel": None,
+                    "tta_enabled": bool(use_tta),
                 }
+
+            probs_flip = None
+            if use_tta:
+                flipped = image.transpose(Image.FLIP_LEFT_RIGHT)
+                with torch.no_grad():
+                    tensor_flip = self.transform(flipped).unsqueeze(0).to(self.device)
+                    probs_flip = self.model(tensor_flip).softmax(dim=1)[0].cpu()
+                    del tensor_flip
 
             layer = self.model.layer4 if self.config["model"] == "resnet18" else self.model.features
             captured = []
@@ -171,7 +198,12 @@ class Predictor:
             try:
                 tensor = self.transform(image).unsqueeze(0).to(self.device)
                 logits = self.model(tensor)
-                probabilities = logits.detach().float().softmax(dim=1)[0].cpu()
+                probs_orig = logits.detach().float().softmax(dim=1)[0].cpu()
+                if probs_flip is not None:
+                    probabilities = 0.5 * (probs_orig + probs_flip)
+                else:
+                    probabilities = probs_orig
+
                 top = probabilities.topk(min(5, len(self.names)))
                 scores = {self.names[int(i)]: float(p) for p, i in zip(top.values, top.indices)}
                 records = [
@@ -218,6 +250,7 @@ class Predictor:
                     "target_class_id": target,
                     "target_class_name": self.names[target],
                     "target_layer": "layer4" if self.config["model"] == "resnet18" else "features",
+                    "tta_enabled": bool(use_tta),
                 }
             finally:
                 hook.remove()

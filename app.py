@@ -93,7 +93,7 @@ def _discover_examples():
 
 
 @gpu_decorator
-def classify(image, show_gradcam=True):
+def classify(image, show_gradcam=True, use_tta=False):
     """Run deterministic CUB-200 inference and optional layer4 Grad-CAM attribution.
 
     Returns a 6-tuple whose first element (`[0]`) is the top-k `{species_name: probability}` dict
@@ -102,7 +102,9 @@ def classify(image, show_gradcam=True):
     if image is None:
         raise gr.Error("Please upload a bird photograph first (supported formats: JPEG, PNG, WebP).")
     try:
-        result = predictor().predict_with_gradcam(image, include_gradcam=bool(show_gradcam))
+        result = predictor().predict_with_gradcam(
+            image, include_gradcam=bool(show_gradcam), use_tta=bool(use_tta)
+        )
     except (FileNotFoundError, ValueError, OSError, TypeError) as error:
         raise gr.Error(str(error)) from error
 
@@ -116,11 +118,27 @@ def classify(image, show_gradcam=True):
         if best < 0.5
         else "High top-1 concentration — compare key field marks (bill shape, wing bars, crown plumage) against the Top-5 candidates below."
     )
-    gradcam_status = (
-        f"Computed `layer4` (7×7) Grad-CAM for predicted target **`[{top1['label']:03d}] {top1['name']}`**."
-        if show_gradcam
-        else "Grad-CAM computation was skipped (`Compute layer4 Grad-CAM Explainability` unchecked) — ran fast forward-only `@torch.inference_mode()` pass."
+    mode_desc = (
+        "**Enhanced 2-View TTA** (Original + Horizontally Flipped bilateral reflection averaging)"
+        if use_tta
+        else "**Standard Single-View** (224×224 deterministic center-crop)"
     )
+    if show_gradcam:
+        if use_tta:
+            gradcam_status = (
+                f"Computed `layer4` (7×7) Grad-CAM on **original image orientation** for the TTA-selected target "
+                f"**`[{top1['label']:03d}] {top1['name']}`** (explains spatial contribution of original-view features to the selected class; "
+                f"not a mathematical attribution of both averaged views)."
+            )
+        else:
+            gradcam_status = (
+                f"Computed `layer4` (7×7) Grad-CAM for predicted target **`[{top1['label']:03d}] {top1['name']}`**."
+            )
+    else:
+        gradcam_status = (
+            "Grad-CAM computation was skipped (`Compute layer4 Grad-CAM Explainability` unchecked) — "
+            "ran fast forward-only `@torch.inference_mode()` pass."
+        )
     table_lines = [
         f"### Predicted Species: **{top1['name']}** &nbsp;|&nbsp; Zero-Based Class ID: **`{top1['label']:03d}`** (`{top1['label']}` in `0–199`) &nbsp;|&nbsp; Top-1 Softmax: **`{best * 100:.2f}%`**",
         "",
@@ -134,6 +152,7 @@ def classify(image, show_gradcam=True):
     table_lines.extend(
         [
             "",
+            f"- **Inference Mode:** {mode_desc}",
             f"- **Prediction Guidance:** {caution}",
             f"- **Explainability Status:** {gradcam_status}",
             "- **Closed-Set Scope (200 Trained Species Only):** This classifier recognises **only the 200 North American bird species (`000–199`)** from the CUB-200 benchmark. Softmax scores sum to 100% across those 200 classes and **are not calibrated confidence**; out-of-distribution species or non-bird images will still be assigned to the closest learned class.",
@@ -188,6 +207,10 @@ def build_app():
                         show_cam = gr.Checkbox(
                             value=True,
                             label="Compute layer4 Grad-CAM Explainability (uncheck for faster forward-only inference)",
+                        )
+                        use_tta = gr.Checkbox(
+                            value=False,
+                            label="Enhanced Prediction (2-view TTA: bilateral reflection averaging)",
                         )
                         with gr.Row():
                             submit = gr.Button(
@@ -307,7 +330,7 @@ def build_app():
         )
         submit.click(
             classify,
-            inputs=[photo, show_cam],
+            inputs=[photo, show_cam, use_tta],
             outputs=[prediction, note, crop_out, heatmap_out, overlay_out, cam_panel_out],
             concurrency_limit=1,
         )
