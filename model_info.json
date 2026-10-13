@@ -1,0 +1,16 @@
+{
+  "architecture": "resnet18",
+  "epoch": 34,
+  "validation_metrics": {
+    "top1": 0.6965589155370178,
+    "average_accuracy_per_class": 0.691,
+    "top5": 0.8957247132429614,
+    "macro_f1": 0.6851803167592643,
+    "samples": 959,
+    "classes_present": 200,
+    "loss": 1.1895487764704589
+  },
+  "source_checkpoint_sha256": "b7b74291077ead2315a28627d40a0cfb5cdda574fcb38334eaa74c57cca3796b",
+  "split_fingerprint": "55f05f6ac27722f9ca3de2b60a6311117b1bcb0b679220aa739c8ff11c9c6033",
+  "selection": "validation average accuracy per class; tie-break lowest validation cross-entropy"
+}

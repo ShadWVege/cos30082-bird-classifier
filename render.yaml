@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: cos30082-bird-classifier
+    runtime: python
+    plan: free
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: GRADIO_SERVER_NAME
+        value: "0.0.0.0"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
