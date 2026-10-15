@@ -1,0 +1,29 @@
+{
+  "experiment_id": "E6_resnet18_enhanced",
+  "model": "resnet18",
+  "num_classes": 200,
+  "seed": 42,
+  "image_size": 224,
+  "batch_size": 16,
+  "num_workers": 0,
+  "epochs": 35,
+  "head_epochs": 5,
+  "lr": 0.001,
+  "finetune_blocks": ["layer3", "layer4"],
+  "finetune_lr": 0.0001,
+  "discriminative_lr": {
+    "layer3": 0.00001,
+    "layer4": 0.00005,
+    "fc": 0.0002
+  },
+  "freeze_bn": true,
+  "weight_decay": 0.0001,
+  "augment": true,
+  "dropout": 0.0,
+  "patience": 8,
+  "scheduler": true,
+  "scheduler_patience": 3,
+  "scheduler_factor": 0.5,
+  "amp": true
+}
+

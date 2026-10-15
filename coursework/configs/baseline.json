@@ -1,0 +1,16 @@
+{
+  "model": "baseline",
+  "num_classes": 200,
+  "seed": 42,
+  "image_size": 224,
+  "batch_size": 16,
+  "num_workers": 0,
+  "epochs": 40,
+  "lr": 0.001,
+  "weight_decay": 0.0,
+  "augment": false,
+  "dropout": 0.0,
+  "patience": 0,
+  "scheduler": false,
+  "amp": true
+}

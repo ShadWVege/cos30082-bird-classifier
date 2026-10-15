@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest>=8,<10
+huggingface_hub>=0.30,<3
+
+# Optional: Four-page coursework report compilation (scripts/compile_report.py)
+typst>=0.11
+pypdf>=4.0

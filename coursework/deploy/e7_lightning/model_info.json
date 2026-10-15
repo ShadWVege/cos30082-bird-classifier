@@ -1,0 +1,62 @@
+{
+  "model": "convnext_tiny",
+  "experiment_id": "E7_convnext_tiny",
+  "checkpoint_epoch": 27,
+  "parameters": 27973928,
+  "stage_parameters": {
+    "stage1_head_warmup": {
+      "trainable": 155336,
+      "frozen": 27818592
+    },
+    "stage2_features7_and_head": {
+      "trainable": 14444744,
+      "frozen": 13529184
+    }
+  },
+  "source_checkpoint_sha256": "18cfc800908652c7b055e7a13e4369f995ec4a91b4ae4b1b7f134f4722d015b2",
+  "inference_model_sha256": "b26dce1d5f0883d9612fcc6905c0d0e5f632accc54d7d9df0dd511c9cd208d4c",
+  "split_fingerprint": "55f05f6ac27722f9ca3de2b60a6311117b1bcb0b679220aa739c8ff11c9c6033",
+  "validation_metrics": {
+    "top1": 0.8039624608967675,
+    "average_accuracy_per_class": 0.7975,
+    "top5": 0.9635036496350365,
+    "macro_f1": 0.7918845177869946,
+    "loss": 0.6985483887732589,
+    "samples": 959
+  },
+  "validation_metrics_tta": {
+    "top1": 0.8102189781021898,
+    "average_accuracy_per_class": 0.8035,
+    "top5": 0.9624608967674662,
+    "macro_f1": 0.7971156343656344,
+    "samples": 959
+  },
+  "official_test_metrics_single_view": {
+    "top1": 0.8073089700996677,
+    "average_accuracy_per_class": 0.8024464285714284,
+    "top5": 0.9518272425249169,
+    "macro_f1": 0.7993666472416472,
+    "loss": 0.7595247596601316,
+    "samples": 1204
+  },
+  "official_test_metrics_tta": {
+    "top1": 0.803156146179402,
+    "average_accuracy_per_class": 0.7985714285714286,
+    "top5": 0.9493355481727574,
+    "macro_f1": 0.7966343297225649,
+    "loss": 0.7489424099359797,
+    "samples": 1204
+  },
+  "paired_mcnemar_vs_e3": {
+    "test_samples": 1204,
+    "both_correct_n11": 784,
+    "e3_correct_e7_incorrect_n10": 64,
+    "e3_incorrect_e7_correct_n01": 188,
+    "both_incorrect_n00": 168,
+    "discordant_pairs": 252,
+    "exact_binomial_p_value": 2.484920e-15,
+    "chi2_continuity_corrected": 60.0357
+  },
+  "post_test_exploratory_status": true,
+  "notes": "Post-test exploratory evaluation on frozen E7 checkpoint. Single-view inference (80.73% Top-1) is the primary mode as it outperformed TTA (80.32% Top-1) on the official held-out test set."
+}

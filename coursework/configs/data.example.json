@@ -1,0 +1,12 @@
+{
+  "train_root": "D:/BirdData/Train",
+  "test_root": "D:/BirdData/Test",
+  "train_manifest": "data/train.txt",
+  "test_manifest": "data/test.txt",
+  "prepared_dir": "data/prepared",
+  "num_classes": 200,
+  "expected_train_count": 4829,
+  "seed": 42,
+  "val_fraction": 0.2,
+  "conflict_policy": "train_only"
+}
