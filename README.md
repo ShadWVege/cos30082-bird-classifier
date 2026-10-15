@@ -1,14 +1,4 @@
----
-title: Bird Species Explorer
-emoji: 🐦
-colorFrom: green
-colorTo: blue
-sdk: gradio
-sdk_version: 6.29.1
-app_file: app.py
-python_version: '3.12'
-pinned: false
----
+
 
 # COS30082 Bird Species Classification (CUB-200)
 
